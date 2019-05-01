@@ -1,0 +1,30 @@
+Assignment 1B
+
+1. What are Channels and Kernels (according to EVA)?
+
+Channels - A collection of similar kind of information is called a channel. And all the channels put back together gives us back
+the original image.
+Ex - red component, vertical edges, horizontal edges, all circles
+
+Kernels - Feature extractors or operators which perform certain operation to extract information corresponding to a channel
+
+
+
+2. Why should we only (well mostly) use 3x3 Kernels?
+
+- Increase in kernel size results is a non-linear increase in number of parameters to be stored
+  Ex: 5x5 kernel (receptive field 5x5) -> 25 parametes
+  2 layers of 3x3 kernels (global receptive field 5x5) -> 2 * 9 parametes = 18 parameters
+- GPUs are heavily optimized for 3x3 convolution operations. Using 3x3 kernel accelerates our network heavily which 
+  gives us more room for adding more layers
+
+
+3. How many times do we need to perform 3x3 convolution operation to reach 1x1 from 199x199 (show calculations)
+
+199x199 -> 197x197 -> 195x195 -> .... -> 1x1
+This is arithmetic progression with common difference -2
+
+number of terms = (last term - first term ) / common difference
+                = (1 - 199) / (-2)
+                = 198/2
+                = 99
