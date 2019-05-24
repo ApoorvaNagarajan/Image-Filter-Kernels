@@ -1,0 +1,217 @@
+Architectural Basics:
+---------------------
+
+The following are the concepts that I will think about while designing a network. 
+The numbers also indicate the order in which I will consider these concepts
+
+
+The thought process behind the arrangement is to get a vanilla network with the basic
+layers and the a thumb rule to get number of layers and position of layers. Based on 
+the results of the vanilla network, we can decide to update the network and tune
+the parameters
+
+--------------------------------------------------------------------------------------
+1. 3x3 Convolutions
+
+Kernel size is 3x3. This is the optimal size. Multiple layers of 3x3 convolutions
+can be added to produce the same effect of higher size kernel while reducing the
+parameters drastically. Most of the GPUs are optimized to accelerate 3x3 convolutions
+--------------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------------
+2. Kernels and how do we decide the number of kernels?
+
+Kernel is a feature extractor, weights of which will be learnt by the network. Usually
+number of kernels in a layer is set to power of 2 as the GPU will allocate resources
+in powers of 2. In general the first layer has the lowest number of kernels and 
+gradually the number of kernels are increased down the layers
+--------------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------------
+3. Receptive Field
+
+The effective number of input pixels seen at a layer to generate each output pixel/value
+is called receptive field of the layer. To get the final output of the network
+the receptive field is adjusted such that the network has effecively seen almost the 
+entire image/object before concluding on the result
+--------------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------------
+4. Concept of Transition Layers
+
+Transition layers are used to reduce the number of parameters. If we keep increasing  
+number of channels with the number of convolution layers, the GPU will eventually run 
+out of memory. Thus at each transition layer, the number of channels is compacted so 
+that not much data is lost and number of channels and hence the number of 
+parameters are reduced
+--------------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------------
+5. MaxPooling
+
+Type of transition layer. Returns the max value over a specified block size. This 
+helps in reducing the number of parameters by filtering out unecessary features,
+increasing receptive field and also adds slight rotational and translational invariance. 
+--------------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------------
+6. 1x1 Convolutions
+
+Type of transition layer. Produces the effect of combining features ex: In a face, 
+both nose and eyes must be present close to each other. Helps in reducing number of 
+channels/parameters while not losing any information. Also computationally very
+simple
+--------------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------------
+7. Position of Transition Layer
+
+Transition layers are positioned after blocks of convolution layers to keep a check 
+on the number of parameters. They could also be used at the end to reduce the number
+channels corresponding to number of classes used for classification
+--------------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------------
+8. Position of MaxPooling
+
+Max pooling must not be present at the begining of the network because a lot of
+information will be lost. Max pooling can added after a logical number of convolution
+layers depending on the resolution of input image. The logical number can be after 
+receptive field of either 9x9, 11x11 etc depending on when some features are visible
+in the input image. Max pooling should not be placed at the end of the network as 
+it might remove very vital information that is collected at the end of the 
+network
+--------------------------------------------------------------------------------------
+
+
+--------------------------------------------------------------------------------------
+9. The distance of MaxPooling from Prediction
+
+Max pooling must not be placed at least 3 to 4 layers before the prediction layer.
+As it might remove very vital information that is collected at the end of the 
+network
+--------------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------------
+10. SoftMax
+
+Softmax function pulls the values far apart from each other. Is usually used at the 
+end as the prediction layer. It helps in easy classifying. The downside is that
+it supresses the second most probable class to a great extent making the decision
+ver drastic for use cases like medical prediction.
+--------------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------------
+11. How many layers
+
+The number of layers must be adjusted such that the receptive field of the network
+should almost match the size of the input image/object. The layers must be a 
+combination of convolution layers, transition layers, prediction layer 
+--------------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------------
+12. How do we know our network is not going well, comparatively, very early
+
+By keeping track of the validation accuracy of first one or two epochs
+--------------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------------
+13. Number of Epochs and when to increase them
+
+When we see that the training accuracy still has a room to improve, we can improve 
+number of epochs to check if the network learns after few more epochs
+--------------------------------------------------------------------------------------
+
+
+--------------------------------------------------------------------------------------
+14. When to add validation checks
+
+Validation checks are to be added after each epoch. This will indicate if the model
+is overfitting and also help us decide on the number of epochs needed to achieve 
+the desired accuracy levels.
+--------------------------------------------------------------------------------------
+
+
+--------------------------------------------------------------------------------------
+15. Batch Size, and effects of batch size
+
+Number of training examples used to execute one forward/backward pass. The best batch 
+size depends on the dataset. In general, higer the batch size better the learning. 
+But for some datasets, lower batch sizes work better than higher. This needs to be 
+decided based on experimentation
+--------------------------------------------------------------------------------------
+
+
+--------------------------------------------------------------------------------------
+16. DropOut
+
+Type of layer used to drop out a specified percentage of features from one layer to
+the other. This will help in solving the problem of overfitting
+--------------------------------------------------------------------------------------
+
+
+--------------------------------------------------------------------------------------
+17. When do we introduce DropOut, or when do we know we have some overfitting
+
+The training accuracy keeps increasing with epochs but the testing accuracy does
+not increase. This is the indication of overfitting
+--------------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------------
+18. Learning Rate
+
+The amount by which the weights are adjusted during training so that the loss function 
+reaches to minimum. Learning rate should be adjusted such that the we should use 
+higher learning rates when the loss value is high and reduce it as and when the 
+loss value reduces.
+--------------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------------
+19. Batch Normalization
+
+Batch normalization normalizes the output of a layer by subtracting mean and dividing 
+by standard deviation (plus adding some parameters alpha and beta). This helps in 
+avoiding overflow after each colvolution operation.
+--------------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------------
+20. The distance of Batch Normalization from Prediction
+
+Batch normalization should not be put before a prediction layer as it will skew the
+final activation values corresponding to each class
+--------------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------------
+21. Image Normalization
+
+Converting the pixel data between 0 and 255 to a value between 0 and 1 to avoid 
+overflow after convolutions
+--------------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------------
+22. When do we stop convolutions and go ahead with a larger kernel or some other alternative (which we have not yet covered)
+
+When the output layer has reached a small number say 7x7 or 5x5 on which applying a 
+3x3 kernel will be using only one or two values at the center.
+--------------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------------
+23. LR schedule and concept behind it
+
+LR schedule decides the learning rate for an epoch on the fly. To attain the best 
+accuracy in lesser epochs, we need to adjust the learning rate such that we use
+a higer learning rate at the initial epochs when the loss values are high (this 
+helps is reaching in getting close to the optimal weights faster) and lower learning
+rates later when the loss values are low (this will help in reaching closer to
+the optimal weights)
+--------------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------------
+24. Adam vs SGD
+
+ADAM: Adaptive moment estimation
+SGD: stochastic gradient descent
+
+Both ADAM and SGD are varients of the gradient descent algorithm. Both of them almost 
+produce the same results
+--------------------------------------------------------------------------------------
