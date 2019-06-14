@@ -4,9 +4,9 @@ Assignment 7A
 
 Layer		kernel size, stride		Jin		Rout 	Jout
 
-CONV2D	7x7,2					1		7		2
+CONV2D		7x7,2					1		7		2
 MP			3x3,2					2		11		4
-CONV2D	3X3,1					4		19		4
+CONV2D		3X3,1					4		19		4
 MP			3X3X2					4		27		8
 3A			5X5X1					8		59		8
 3B			5X5X1					8		91		8
