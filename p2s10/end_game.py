@@ -41,7 +41,7 @@ n_points = 0
 length = 0
 
 # Getting our AI, which we call "brain", and that contains our neural network that represents our Q-function
-brain = TD3(5,1,5)
+brain = TD3(3,1,5)
 last_reward = 0
 scores = []
 
@@ -62,21 +62,17 @@ def init():
     img = cv2.imread("./images/MASK1.png",0) 
     sand = img/255
           
-    goal_x = 1197
-    goal_y = 512
+    goal_x = 1080
+    goal_y = 425
     first_update = False
     global swap
     swap = 0
     global done_flag
     done_flag = 0
-    global total_timesteps
-    total_timesteps = 0
 
 
 # Initializing the last distance
 last_distance = 0
-
-max_episode_timesteps = 2000
 
 # Creating the car class
 
@@ -96,8 +92,9 @@ class Car(Widget):
         
     def reset(self):
         print("RESETTING")
-        self.pos.x = np.random.randint(80, map_width-80, size=1)
-        self.pos.y = np.random.randint(80, map_height-80, size=1)
+        self.x = int(np.random.randint(80, map_width-80, size=1)[0])
+        self.y = int(np.random.randint(80, map_height-80, size=1)[0])
+        print("pos_x ", self.x, "pos_y ", self.y)
         
 
 class Goal(Widget):
@@ -117,7 +114,7 @@ class Game(Widget):
         
     def get_surroundings(self):
         
-        crop_img = sand[map_height-int(self.car.y)-crop_size: map_height- int(self.car.y)+crop_size, int(self.car.x)-crop_size:int(self.car.x)+crop_size].copy()
+        crop_img = sand[map_height-1-int(self.car.y)-crop_size: map_height-1- int(self.car.y)+crop_size, int(self.car.x)-crop_size:int(self.car.x)+crop_size].copy()
        
         top = 0
         bottom = 0
@@ -126,35 +123,51 @@ class Game(Widget):
          
         # if at frame boundary, pad the cropped image with sand (1's)
         if(crop_img.shape[0] != 2*crop_size): # rows
-            if(self.car.pos[1] < crop_size):
+            if(self.car.y < crop_size):
                 bottom = 2*crop_size - crop_img.shape[0]
             else:
                 top = 2*crop_size - crop_img.shape[0]
             
         if(crop_img.shape[1] != 2*crop_size): # colums
-            if(self.car.pos[0] < crop_size):
+            if(self.car.x < crop_size):
                 left = 2*crop_size - crop_img.shape[1]
             else:
                 right = 2*crop_size - crop_img.shape[1]            
             
         if((top != 0) or (bottom != 0) or (left != 0) or (right != 0)):
-            print(crop_size, top, bottom, right, left)
             crop_img = cv2.copyMakeBorder(crop_img, top, bottom, left, right, cv2.BORDER_CONSTANT, value=1 )    
         #cv2.imshow("crop_img",crop_img)
-        #cv2.waitKey(0)  
+        #cv2.waitKey(0) 
+        #plt.imshow(crop_img, cmap=plt.get_cmap('gray'))
+        #plt.show()
 
-        pt1 = Vector(30, 0).rotate(-self.car.angle) + (crop_size, crop_size)
-        pt2 = Vector(0, 10).rotate(-self.car.angle) + (crop_size, crop_size)
-        pt3 = Vector(0, -10).rotate(-self.car.angle) + (crop_size, crop_size)
-        triangle_cnt = np.array( [pt1, pt2, pt3] )
-        ctr = np.array(triangle_cnt).reshape((-1,3,2)).astype(np.int32)
-        cv2.fillPoly(crop_img, pts =[ctr], color=0.5)     
+
+        pt1 = Vector(0, 10).rotate(-self.car.angle)
+        pt2 = Vector(10, 10).rotate(-self.car.angle)
+        pt3 = Vector(30, 0).rotate(-self.car.angle)
+        pt4 = Vector(10, -10).rotate(-self.car.angle)
+        pt5 = Vector(7, -10).rotate(-self.car.angle)
+        pt6 = Vector(7, -30).rotate(-self.car.angle)
+        pt7 = Vector(3, -30).rotate(-self.car.angle)
+        pt8 = Vector(3, -10).rotate(-self.car.angle)
+        pt9 = Vector(0, -10).rotate(-self.car.angle)
+
+        triangle_cnt = np.array( [pt1, pt2, pt3, pt4, pt5, pt6, pt7, pt8, pt9] )
+        for i in range(0,9):
+          for j in range(0,2):
+            triangle_cnt[i][j] += crop_size
+        ctr = np.array(triangle_cnt).reshape((-1,9,2)).astype(np.int32)
+        cv2.fillPoly(crop_img, pts =ctr, color=0.5)     
         #cv2.imshow("Car",crop_img)
         #cv2.waitKey(0) 
+        #plt.imshow(crop_img, cmap=plt.get_cmap('gray'))
+        #plt.show()
         
         rsz_img = cv2.resize(crop_img, (32,32), interpolation = cv2.INTER_AREA)
         #cv2.imshow("resized_image",rsz_img)
         #cv2.waitKey(0) 
+        #plt.imshow(rsz_img, cmap=plt.get_cmap('gray'))
+        #plt.show()
         
         rsz_img = rsz_img.reshape(1, 32, 32)
 
@@ -172,7 +185,6 @@ class Game(Widget):
         global map_height
         global swap
         global done_flag
-        global total_timesteps
         
 
         map_width = self.width
@@ -181,10 +193,12 @@ class Game(Widget):
             init()
             self.surr = self.get_surroundings()
             print(self.car.x, self.car.y)
+            brain.load()
 
 
         xx = goal_x - self.car.x
         yy = goal_y - self.car.y
+        distance = np.sqrt((self.car.x - goal_x)**2 + (self.car.y - goal_y)**2)
         orientation = Vector(*self.car.velocity).angle((xx,yy))/180.
         
         
@@ -192,53 +206,57 @@ class Game(Widget):
         #32x32 cropped image with car overlay
         #orientation
         #-orientation
-        #distance_x from goal
-        #distance_y from goal       
+        #distance from goal     
         X1 = self.surr       
-        X2 = [orientation, -orientation, xx, yy]
+        X2 = [orientation, -orientation, distance/1574]
 
         # actions:
         # angle theta of rotation       
         action = brain.select_action(X1, X2)
-        print(action)
-        self.car.move(action[0]) 
+        print(action[0])
+        self.car.move(action[0])
+        on_road = 0
                
         if self.car.x < border_size:
             self.car.x = border_size
-            last_reward = -10
+            last_reward = -30
+            print("LEFT BORDERRRRRRRRRRRRRRRRRRRRR")
             done_flag = 1
-        if self.car.x > self.width - border_size:
-            self.car.x = self.width - border_size
-            last_reward = -10
+        if self.car.x > map_width - border_size:
+            self.car.x = map_width - border_size
+            last_reward = -30
+            print("RIGHT BORDERRRRRRRRRRRRRRRRRRRRR")
             done_flag = 1
         if self.car.y < border_size:
             self.car.y = border_size
-            last_reward = -10
+            last_reward = -30
+            print("TOP BORDERRRRRRRRRRRRRRRRRRRRR")
             done_flag = 1
-        if self.car.y > self.height - border_size:
-            self.car.y = self.height - border_size
-            last_reward = -10
+        if self.car.y > map_height - border_size:
+            self.car.y = map_height - border_size
+            last_reward = -30
+            print("BOTTOM BORDERRRRRRRRRRRRRRRRRRRRR")
             done_flag = 1
-            
-        on_road = 0
+
         
         if(0 == done_flag):
-
+        
             # velocity
-            if sand[map_height-int(self.car.y), int(self.car.x)] > 0:
+            if sand[map_height-1-int(self.car.y), int(self.car.x)] > 0:
                 self.car.velocity = Vector(0.5, 0).rotate(self.car.angle)
                 on_road = 0
-                print("SAND")
+                #print("SAND")
             else: # otherwise
-                self.car.velocity = Vector(2, 0).rotate(self.car.angle)
+                self.car.velocity = Vector(1, 0).rotate(self.car.angle)
                 on_road = 1
-                print("ROAD")
+                #print("ROAD")
             
             new_xx = goal_x - self.car.x
             new_yy = goal_y - self.car.y
             new_orient = Vector(*self.car.velocity).angle((new_xx,new_yy))/180.
             new_X1 = self.get_surroundings()
-            new_X2 = [new_orient, -new_orient, new_xx, new_yy]
+            distance = np.sqrt((self.car.x - goal_x)**2 + (self.car.y - goal_y)**2)
+            new_X2 = [new_orient, -new_orient, distance/1574]
             self.surr = new_X1
                             
             # Rewards
@@ -247,11 +265,11 @@ class Game(Widget):
             if((on_road == 1) and (distance < last_distance)):
                 last_reward = 1
             elif((on_road == 0) and (distance < last_distance)):
-                last_reward = -2
+                last_reward = -15
             elif((on_road == 1) and (distance > last_distance)):
-                last_reward = -1
+                last_reward = -10
             elif((on_road == 0) and (distance > last_distance)):
-                last_reward = -4
+                last_reward = -25
             
         else:
             
@@ -264,17 +282,17 @@ class Game(Widget):
         if distance < 25:
             print("GOALLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL REACHEDDDDDDDDDDDDDDDDDD")
             if swap == 1:
-                goal_x = 1197
-                goal_y = 512
+                goal_x = 1080 #1197
+                goal_y = 425 #512
                 swap = 0
                 done_flag = 1
-                #self.goal.pos = 1420, 622
+                self.goal.pos = 1080, 425 #1197, 512
             else:
                 goal_x = 361
                 goal_y = 311
                 swap = 1
                 done_flag = 1
-                self.goal.pos = 9, 85
+                self.goal.pos = 361, 311
                 
         last_distance = distance
 
@@ -284,8 +302,6 @@ class Game(Widget):
             self.car.reset()
             self.surr = self.get_surroundings()
             done_flag = 0
-
-        total_timesteps += 1
 
 # Adding the painting tools
 
